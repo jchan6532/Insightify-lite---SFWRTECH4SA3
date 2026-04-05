@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from app.schemas.document import DocumentCreate
+from app.schemas import DocumentCreate
 from app.db import get_connection
 from app.services.ingestion_service import IngestionService
 from app.parsers.parser_factory import ParserFactory
@@ -84,6 +84,68 @@ def list_documents():
             })
 
         return {"documents": documents}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
+
+@router.get("/{document_id}/chunks")
+def get_document_chunks(document_id: int):
+    conn = None
+    cur = None
+
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+
+        cur.execute(
+            """
+            SELECT d.id, d.title
+            FROM documents d
+            WHERE d.id = %s
+            """,
+            (document_id,)
+        )
+
+        document_row = cur.fetchone()
+
+        if not document_row:
+            raise HTTPException(status_code=404, detail="Document not found")
+
+        cur.execute(
+            """
+            SELECT chunk_index, chunk_text
+            FROM chunks
+            WHERE document_id = %s
+            ORDER BY chunk_index ASC
+            """,
+            (document_id,)
+        )
+
+        chunk_rows = cur.fetchall()
+
+        chunks = []
+        for row in chunk_rows:
+            chunks.append({
+                "chunk_index": row[0],
+                "chunk_text": row[1]
+            })
+
+        return {
+            "document_id": document_row[0],
+            "title": document_row[1],
+            "chunk_count": len(chunks),
+            "chunks": chunks
+        }
+
+    except HTTPException:
+        raise
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
