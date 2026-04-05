@@ -11,20 +11,25 @@ class KeywordRetrievalStrategy(RetrievalStrategy):
             conn = get_connection()
             cur = conn.cursor()
 
-            search_term = f"%{question}%"
+            words = [word.strip() for word in question.split() if len(word.strip()) > 2]
 
-            cur.execute(
-                """
+            if not words:
+                return []
+
+            conditions = " OR ".join(["c.chunk_text ILIKE %s" for _ in words])
+            values = [f"%{word}%" for word in words]
+            values.append(limit)
+
+            query = f"""
                 SELECT c.id, c.document_id, d.title, c.chunk_index, c.chunk_text
                 FROM chunks c
                 JOIN documents d ON c.document_id = d.id
-                WHERE c.chunk_text ILIKE %s
+                WHERE {conditions}
                 ORDER BY c.document_id DESC, c.chunk_index ASC
                 LIMIT %s
-                """,
-                (search_term, limit)
-            )
+            """
 
+            cur.execute(query, values)
             rows = cur.fetchall()
 
             results = []
