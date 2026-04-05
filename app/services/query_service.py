@@ -1,8 +1,8 @@
 from openai import OpenAI
-import os
 
 from app.retrieval.keyword_strategy import KeywordRetrievalStrategy
 from app.retrieval.full_scan_strategy import FullScanRetrievalStrategy
+from app.config import OPENAI_API_KEY
 
 
 class QueryService:
@@ -29,7 +29,7 @@ class QueryService:
         )
 
         client = OpenAI(
-            api_key=os.getenv("OPENAI_API_KEY")
+            api_key=OPENAI_API_KEY
         )
 
         prompt = f"""

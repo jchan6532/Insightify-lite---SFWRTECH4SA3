@@ -1,3 +1,5 @@
+import app.config
+
 from fastapi import FastAPI
 from app.api import documents, query
 
