@@ -44,10 +44,14 @@ Document excerpts:
 Return a concise answer based only on the excerpts.
 """
 
-        response = client.responses.create(
-            model="gpt-4.1-mini",
-            input=prompt
-        )
+        try:
+            response = client.responses.create(
+                model="gpt-4.1-mini",
+                input=prompt
+            )
+            answer = response.output_text
+        except Exception:
+            answer = f"OpenAI unavailable. Retrieved content:\n\n{context_text}"
 
         references = []
         for chunk in chunks:
@@ -58,6 +62,6 @@ Return a concise answer based only on the excerpts.
             })
 
         return {
-            "answer": response.output_text,
+            "answer": answer,
             "references": references
         }
