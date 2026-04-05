@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException
 from app.schemas.document import DocumentCreate
 from app.db import get_connection
 from app.services.ingestion_service import IngestionService
+from app.parsers.parser_factory import ParserFactory
 
 router = APIRouter(
     prefix="/documents", 
@@ -15,6 +16,9 @@ def upload_document(doc: DocumentCreate):
     cur = None
 
     try:
+        parser = ParserFactory.create_parser(doc.file_type)
+        parsed_content = parser.parse(doc.content)
+
         conn = get_connection()
         cur = conn.cursor()
 
@@ -24,18 +28,19 @@ def upload_document(doc: DocumentCreate):
             VALUES (%s, %s)
             RETURNING id
             """,
-            (doc.title, doc.content)
+            (doc.title, parsed_content)
         )
 
         document_id = cur.fetchone()[0]
         conn.commit()
 
         ingestion_service = IngestionService()
-        result = ingestion_service.ingest(document_id=document_id, content=doc.content)
+        result = ingestion_service.ingest(document_id=document_id, content=parsed_content)
 
         return {
             "message": "Document uploaded and ingested successfully",
             "document_id": document_id,
+            "file_type": doc.file_type,
             "chunks_created": result.get("stored_chunk_count", 0)
         }
 
@@ -49,6 +54,7 @@ def upload_document(doc: DocumentCreate):
             cur.close()
         if conn:
             conn.close()
+
 
 @router.get("/")
 def list_documents():
