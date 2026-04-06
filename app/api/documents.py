@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, UploadFile, File
 from app.schemas import DocumentCreate
 from app.db import get_connection
 from app.services.ingestion_service import IngestionService
@@ -16,8 +16,8 @@ def upload_document(doc: DocumentCreate):
     cur = None
 
     try:
-        parser = ParserFactory.create_parser(doc.file_type)
-        parsed_content = parser.parse(doc.content)
+        parser = ParserFactory.create_parser(f"{doc.title}.txt")
+        parsed_content = parser.parse(doc.content.encode("utf-8"))
 
         conn = get_connection()
         cur = conn.cursor()
@@ -55,6 +55,52 @@ def upload_document(doc: DocumentCreate):
         if conn:
             conn.close()
 
+@router.post("/upload-file")
+async def upload_file(file: UploadFile = File(...)):
+    conn = None
+    cur = None
+
+    try:
+        parser = ParserFactory.create_parser(file.filename)
+
+        raw_content = await file.read()
+        parsed_content = parser.parse(raw_content)
+
+        conn = get_connection()
+        cur = conn.cursor()
+
+        cur.execute(
+            """
+            INSERT INTO documents (title, content)
+            VALUES (%s, %s)
+            RETURNING id
+            """,
+            (file.filename, parsed_content)
+        )
+
+        document_id = cur.fetchone()[0]
+        conn.commit()
+
+        ingestion_service = IngestionService()
+        result = ingestion_service.ingest(document_id=document_id, content=parsed_content)
+
+        return {
+            "message": "File uploaded and ingested successfully",
+            "document_id": document_id,
+            "filename": file.filename,
+            "chunks_created": result.get("stored_chunk_count", 0)
+        }
+
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
 
 @router.get("/")
 def list_documents():
