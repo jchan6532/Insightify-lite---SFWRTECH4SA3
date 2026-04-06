@@ -2,7 +2,7 @@ from app.pipeline.base_handler import BaseHandler
 
 
 class ChunkTextHandler(BaseHandler):
-    def __init__(self, chunk_size: int = 200):
+    def __init__(self, chunk_size: int = 50):
         super().__init__()
         self.chunk_size = chunk_size
 
