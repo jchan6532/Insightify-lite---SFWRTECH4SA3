@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File
-from app.schemas import DocumentCreate
+from app.schemas.document import DocumentCreate
 from app.db import get_connection
 from app.services.ingestion_service import IngestionService
 from app.parsers.parser_factory import ParserFactory
@@ -94,7 +94,13 @@ async def upload_file(file: UploadFile = File(...)):
             "filename": file.filename,
             "chunks_created": result.get("stored_chunk_count", 0)
         }
-
+    
+    except NotImplementedError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
     except Exception as e:
         if conn:
             conn.rollback()

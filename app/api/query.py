@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from app.schemas import QueryRequest
+from app.schemas.query import QueryRequest
 from app.services.query_service import QueryService
 
 router = APIRouter(
