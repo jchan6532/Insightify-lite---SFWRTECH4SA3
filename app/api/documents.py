@@ -64,7 +64,11 @@ async def upload_file(file: UploadFile = File(...)):
         parser = ParserFactory.create_parser(file.filename)
 
         raw_content = await file.read()
-        parsed_content = parser.parse(raw_content)
+
+        try:
+            parsed_content = parser.parse(raw_content)
+        except NotImplementedError as e:
+            raise HTTPException(status_code=400, detail=str(e))
 
         conn = get_connection()
         cur = conn.cursor()
